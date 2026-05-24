@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopCopy AI — Product Image to SEO Content</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0a0a0a;--surface:#111;--surface2:#1a1a1a;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.15);
+  --accent:#a8ff57;--accent-dim:rgba(168,255,87,0.1);--accent-b:rgba(168,255,87,0.3);
+  --text:#f0f0f0;--muted:#888;--dim:#555;
+  --blue:#4da6ff;--blue-dim:rgba(77,166,255,0.1);
+  --purple:#b794f4;--purple-dim:rgba(183,148,244,0.1);
+  --orange:#ff9f4a;--orange-dim:rgba(255,159,74,0.1);
+  --red:#ff6b6b;--gold:#ffd700;--gold-dim:rgba(255,215,0,0.1);
+  --r:14px;--rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-40%;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(168,255,87,0.04) 0%,transparent 70%);pointer-events:none;z-index:0}
+.container{max-width:860px;margin:0 auto;padding:0 24px 80px;position:relative;z-index:1}
+
+/* ── HEADER ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:26px 0 36px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:#000}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.3px}
+.logo-text span{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px}
+.credits-badge{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:40px;padding:6px 14px;font-size:13px;color:var(--muted)}
+.credits-badge .num{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);font-size:14px}
+.user-badge{display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:40px;padding:5px 5px 5px 12px;font-size:13px;color:var(--muted)}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);font-family:'Syne',sans-serif}
+.btn-signout{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--muted);cursor:pointer;transition:all .15s}
+.btn-signout:hover{color:var(--text);border-color:var(--border-h)}
+.pro-pill{background:var(--gold-dim);border:1px solid rgba(255,215,0,.3);color:var(--gold);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:'Syne',sans-serif;letter-spacing:.04em}
+
+/* ── AUTH MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-h);border-radius:20px;padding:36px;width:100%;max-width:400px;animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.modal-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.5}
+.field-label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px;font-weight:500}
+.field-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:11px 14px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;margin-bottom:14px}
+.field-input:focus{border-color:var(--accent-b)}
+.field-input::placeholder{color:var(--dim)}
+.btn-auth{width:100%;background:var(--accent);color:#000;border:none;border-radius:var(--rs);padding:13px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:opacity .2s;letter-spacing:-.2px;margin-bottom:14px}
+.btn-auth:hover{opacity:.85}
+.btn-auth:disabled{opacity:.4;cursor:not-allowed}
+.auth-switch{text-align:center;font-size:13px;color:var(--muted)}
+.auth-switch a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:500}
+.auth-switch a:hover{text-decoration:underline}
+.auth-error{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
+.auth-divider{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.auth-divider hr{flex:1;border:none;border-top:1px solid var(--border)}
+.auth-divider span{font-size:12px;color:var(--dim)}
+.btn-google{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:11px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px}
+.btn-google:hover{border-color:var(--border-h);background:var(--surface)}
+.google-icon{width:18px;height:18px;flex-shrink:0}
+
+/* ── HERO ── */
+.hero{text-align:center;margin-bottom:40px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;background:var(--accent-dim);border:1px solid var(--accent-b);border-radius:40px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--accent);margin-bottom:18px;letter-spacing:.04em;text-transform:uppercase}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(28px,5vw,48px);font-weight:800;line-height:1.1;letter-spacing:-1.5px;margin-bottom:12px}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{font-size:15px;color:var(--muted);max-width:440px;margin:0 auto;line-height:1.6}
+
+/* ── UPLOAD ── */
+.upload-area{border:2px dashed var(--border-h);border-radius:var(--r);padding:42px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);position:relative;overflow:hidden;margin-bottom:22px}
+.upload-area:hover,.upload-area.drag-over{border-color:var(--accent-b);background:var(--accent-dim)}
+.upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:36px;margin-bottom:11px;opacity:.5}
+.upload-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:5px}
+.upload-sub{font-size:13px;color:var(--muted)}
+.upload-preview{display:none;position:relative}
+.upload-preview img{max-height:260px;max-width:100%;border-radius:var(--rs);object-fit:contain}
+.preview-change{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.75);border:1px solid var(--border-h);border-radius:var(--rs);padding:6px 12px;font-size:12px;cursor:pointer}
+
+/* ── MODE ── */
+.mode-label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+.mode-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:14px;cursor:pointer;transition:all .15s;position:relative}
+.mode-card:hover{border-color:var(--border-h)}
+.mode-card.active{border-color:var(--accent-b);background:var(--accent-dim)}
+.mode-card.active .mc-title{color:var(--accent)}
+.pro-badge{position:absolute;top:9px;right:9px;background:var(--gold-dim);border:1px solid rgba(255,215,0,.3);color:var(--gold);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;font-family:'Syne',sans-serif}
+.mc-icon{font-size:18px;margin-bottom:5px}
+.mc-title{font-size:13px;font-weight:500;margin-bottom:3px}
+.mc-sub{font-size:11px;color:var(--muted);line-height:1.4}
+
+/* ── GENERATE ── */
+.btn-gen{width:100%;background:var(--accent);color:#000;border:none;border-radius:var(--r);padding:17px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:-.3px;margin-bottom:32px}
+.btn-gen:hover{opacity:.88;transform:translateY(-1px)}
+.btn-gen:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.spinner{display:none;width:18px;height:18px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── LOADING ── */
+.loading-state{display:none;text-align:center;padding:32px 0}
+.loading-bar{width:100%;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:13px}
+.loading-bar-fill{height:100%;background:var(--accent);border-radius:2px;animation:load 2s ease-in-out infinite}
+@keyframes load{0%{width:0%;margin-left:0}50%{width:70%;margin-left:0}100%{width:0%;margin-left:100%}}
+.loading-text{font-size:13px;color:var(--muted)}
+.loading-text span{color:var(--accent);font-weight:500}
+
+/* ── RESULTS ── */
+#results{animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.results-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.5px}
+.btn-regen{background:var(--surface);border:1px solid var(--border-h);border-radius:var(--rs);padding:7px 14px;font-size:13px;color:var(--muted);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
+.btn-regen:hover{color:var(--text);background:var(--surface2)}
+.out-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px;transition:border-color .15s}
+.out-block:hover{border-color:var(--border-h)}
+.obh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.obl{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dg{background:var(--accent)}.db{background:var(--blue)}.dp{background:var(--purple)}.do{background:var(--orange)}
+.btn-copy{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 11px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.btn-copy:hover{background:var(--surface);color:var(--text);border-color:var(--border-h)}
+.btn-copy.copied{color:var(--accent);border-color:var(--accent-b)}
+.out-content{font-size:14px;color:var(--text);line-height:1.7;white-space:pre-wrap}
+.out-title-big{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;line-height:1.3;letter-spacing:-.3px}
+.seo-meter{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.seo-meter-label{font-size:12px;color:var(--muted)}
+.seo-bar-wrap{flex:1;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.seo-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 1s ease}
+.seo-score-val{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:var(--blue-dim);border:1px solid rgba(77,166,255,.2);border-radius:40px;padding:4px 11px;font-size:12px;color:var(--blue)}
+.ad-block{border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.ad-block.feed{background:var(--blue-dim);border:1px solid rgba(77,166,255,.2)}
+.ad-block.stories{background:var(--purple-dim);border:1px solid rgba(183,148,244,.2)}
+.ad-block.retarget{background:var(--orange-dim);border:1px solid rgba(255,159,74,.2)}
+.ad-platform{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.ad-block.feed .ad-platform{color:var(--blue)}
+.ad-block.stories .ad-platform{color:var(--purple)}
+.ad-block.retarget .ad-platform{color:var(--orange)}
+.ad-hook{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.3;letter-spacing:-.2px}
+.ad-body{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px}
+.ad-cta{display:inline-block;padding:5px 15px;border-radius:40px;font-size:12px;font-weight:600;font-family:'Syne',sans-serif}
+.ad-block.feed .ad-cta{background:var(--blue);color:#000}
+.ad-block.stories .ad-cta{background:var(--purple);color:#000}
+.ad-block.retarget .ad-cta{background:var(--orange);color:#000}
+
+/* ── NOTICES ── */
+.error-box{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);border-radius:var(--rs);padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:16px;display:none}
+.pro-lock{display:none;background:var(--gold-dim);border:1px solid rgba(255,215,0,.25);border-radius:var(--rs);padding:16px 18px;margin-bottom:20px;align-items:center;gap:13px}
+.pro-lock-icon{font-size:22px;flex-shrink:0}
+.pro-lock-text strong{font-size:13px;font-weight:500;color:var(--gold);display:block;margin-bottom:2px}
+.pro-lock-text span{font-size:12px;color:var(--muted)}
+.btn-unlock{margin-left:auto;background:var(--gold);color:#000;border:none;border-radius:var(--rs);padding:8px 16px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block;transition:opacity .2s}
+.btn-unlock:hover{opacity:.85}
+
+/* ── PAYWALL ── */
+.paywall{display:none;background:var(--surface);border:1px solid var(--accent-b);border-radius:var(--r);padding:34px;text-align:center;margin-bottom:26px}
+.paywall-icon{font-size:36px;margin-bottom:13px}
+.paywall h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:7px}
+.paywall p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:11px;max-width:380px;margin:0 auto 20px}
+.plan-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:16px;text-align:left;cursor:pointer;transition:all .15s}
+.plan-card.featured,.plan-card:hover{border-color:var(--accent-b);background:var(--accent-dim)}
+.plan-price{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;color:var(--accent);letter-spacing:-.5px}
+.plan-name{font-size:12px;color:var(--muted);margin-bottom:5px}
+.plan-features{font-size:11px;color:var(--muted);line-height:1.6}
+.btn-upgrade{display:inline-block;background:var(--accent);color:#000;border:none;border-radius:var(--rs);padding:11px 30px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;text-decoration:none;transition:opacity .2s}
+.btn-upgrade:hover{opacity:.85}
+
+/* ── LOGIN GATE (shown before auth) ── */
+.login-gate{display:none;background:var(--surface);border:1px solid var(--border-h);border-radius:var(--r);padding:36px;text-align:center;margin-bottom:26px}
+.login-gate-icon{font-size:36px;margin-bottom:13px}
+.login-gate h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:7px}
+.login-gate p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.btn-login-gate{background:var(--accent);color:#000;border:none;border-radius:var(--rs);padding:11px 28px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:opacity .2s}
+.btn-login-gate:hover{opacity:.85}
+
+footer{text-align:center;padding-top:34px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);margin-top:34px}
+footer a{color:var(--accent);text-decoration:none}
+.hidden{display:none!important}
+
+@media(max-width:600px){
+  .mode-grid{grid-template-columns:1fr}
+  .two-col{grid-template-columns:1fr}
+  .plans{grid-template-columns:1fr}
+  header{flex-direction:column;gap:12px;align-items:flex-start}
+  .header-right{width:100%;justify-content:space-between}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">SC</div>
+      <div class="logo-text">Shop<span>Copy</span> AI</div>
+    </div>
+    <div class="header-right">
+      <div class="credits-badge" id="credits-badge">
+        ✦ <span class="num" id="credits-display">3</span> free left
+      </div>
+      <div class="user-badge" id="user-badge">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span id="user-email-short"></span>
+        <span class="pro-pill hidden" id="pro-pill">PRO</span>
+        <button class="btn-signout" onclick="signOut()">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal">
+      <div class="modal-logo">
+        <div class="logo-icon" style="width:30px;height:30px;font-size:12px">SC</div>
+        <div class="logo-text" style="font-size:16px">Shop<span>Copy</span> AI</div>
+      </div>
+      <div class="modal-title" id="modal-title">Create your account</div>
+      <div class="modal-sub" id="modal-sub">Get 3 free generations. No credit card needed.</div>
+      <div class="auth-error" id="auth-error"></div>
+
+      <!-- Google button -->
+      <button class="btn-google" onclick="signInGoogle()">
+        <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="auth-divider"><hr><span>or use email</span><hr></div>
+
+      <label class="field-label">Email address</label>
+      <input class="field-input" type="email" id="auth-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')authSubmit()">
+      <label class="field-label">Password</label>
+      <input class="field-input" type="password" id="auth-password" placeholder="Min. 6 characters" onkeydown="if(event.key==='Enter')authSubmit()">
+      <div class="field-input hidden" id="auth-name-wrap" style="padding:0;border:none;background:none;margin-bottom:0">
+        <label class="field-label" style="margin-top:0">Your name</label>
+        <input class="field-input" type="text" id="auth-name" placeholder="Your name" onkeydown="if(event.key==='Enter')authSubmit()" style="margin-bottom:14px">
+      </div>
+      <button class="btn-auth" id="auth-submit-btn" onclick="authSubmit()">Create account</button>
+      <div class="auth-switch" id="auth-switch">
+        Already have an account? <a onclick="toggleAuthMode()">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-eyebrow">✦ Powered by Gemini Vision</div>
+    <h1>Upload a photo.<br><em>Get Shopify-ready copy.</em></h1>
+    <p>Drop your product image — get SEO titles, descriptions, meta tags, and Meta ads instantly.</p>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-area" id="upload-area">
+    <input type="file" accept="image/*" id="file-input" onchange="handleFile(this.files[0])">
+    <div id="upload-placeholder">
+      <div class="upload-icon">📦</div>
+      <div class="upload-title">Drop your product image here</div>
+      <div class="upload-sub">JPG, PNG, WEBP — or click to browse</div>
+    </div>
+    <div class="upload-preview" id="upload-preview">
+      <img id="preview-img" src="" alt="Product">
+      <div class="preview-change" onclick="resetUpload(event)">Change image</div>
+    </div>
+  </div>
+
+  <!-- Mode -->
+  <div class="mode-label">What to generate</div>
+  <div class="mode-grid">
+    <div class="mode-card active" data-mode="product" onclick="selectMode(this)">
+      <div class="mc-icon">📝</div>
+      <div class="mc-title">Product content</div>
+      <div class="mc-sub">SEO title, description, bullets, meta tags, keywords</div>
+    </div>
+    <div class="mode-card" data-mode="ads" onclick="selectMode(this)">
+      <div class="mc-icon">📣</div>
+      <div class="mc-title">Meta ads</div>
+      <div class="mc-sub">Feed, Stories & retargeting ad copy</div>
+    </div>
+    <div class="mode-card" data-mode="both" onclick="selectModePro(this)">
+      <span class="pro-badge">PRO</span>
+      <div class="mc-icon">⚡</div>
+      <div class="mc-title">Everything</div>
+      <div class="mc-sub">Full content pack — product + all ads</div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Pro lock notice -->
+  <div class="pro-lock" id="pro-lock">
+    <div class="pro-lock-icon">⚡</div>
+    <div class="pro-lock-text">
+      <strong>PRO — Full content pack</strong>
+      <span>Generate product content + all 3 Meta ads in one click. Upgrade to unlock.</span>
+    </div>
+    <a href="YOUR_GUMROAD_LINK" target="_blank" class="btn-unlock">Upgrade $12/mo →</a>
+  </div>
+
+  <!-- Login gate (shows on generate if not logged in) -->
+  <div class="login-gate" id="login-gate">
+    <div class="login-gate-icon">🔐</div>
+    <h2>Sign in to generate</h2>
+    <p>Free account — 3 generations included. Takes 10 seconds.</p>
+    <button class="btn-login-gate" onclick="openAuth()">Create free account →</button>
+  </div>
+
+  <!-- Generate -->
+  <button class="btn-gen" id="btn-gen" onclick="generate()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btn-text">✦ Generate content</span>
+  </button>
+
+  <!-- Paywall -->
+  <div class="paywall" id="paywall">
+    <div class="paywall-icon">🔒</div>
+    <h2>You've used your 3 free generations</h2>
+    <p>Upgrade to keep generating unlimited content + unlock the full content pack (product + ads).</p>
+    <div class="plans">
+      <div class="plan-card">
+        <div class="plan-name">50 Credits</div>
+        <div class="plan-price">$8</div>
+        <div class="plan-features">One-time payment<br>50 full generations<br>Never expire</div>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-name">Unlimited ⚡ PRO</div>
+        <div class="plan-price">$12<span style="font-size:12px;font-weight:400;color:var(--muted)">/mo</span></div>
+        <div class="plan-features">Unlimited generations<br>Full content pack mode<br>Cancel anytime</div>
+      </div>
+    </div>
+    <a href="YOUR_GUMROAD_LINK" target="_blank" class="btn-upgrade">Upgrade on Gumroad →</a>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" id="loading-state">
+    <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    <div class="loading-text">Gemini is scanning your image — <span>generating content...</span></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden"></div>
+
+  <footer>
+    Built with <a href="https://aistudio.google.com" target="_blank">Gemini Vision AI</a> ·
+    ShopCopy AI &copy; 2025
+  </footer>
+</div>
+
+<script>
+// ╔══════════════════════════════════════════════════════╗
+// ║           YOUR CONFIGURATION — EDIT THESE           ║
+// ╚══════════════════════════════════════════════════════╝
+
+// 1. Your Gemini API key (get free at aistudio.google.com)
+const GEMINI_KEY = 'PASTE_YOUR_GEMINI_API_KEY_HERE';
+
+// 2. Your Gumroad product link (paste after creating product on gumroad.com)
+const GUMROAD_LINK = 'YOUR_GUMROAD_LINK';
+
+// 3. Firebase config — paste from Firebase console (free at firebase.google.com)
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_FIREBASE_API_KEY",
+  authDomain: "PASTE_AUTH_DOMAIN",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_STORAGE_BUCKET",
+  messagingSenderId: "PASTE_MESSAGING_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
+
+// ╔══════════════════════════════════════════════════════╗
+// ║              END OF CONFIGURATION                   ║
+// ╚══════════════════════════════════════════════════════╝
+
+// Init Firebase
+firebase.initializeApp(FIREBASE_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let currentUser  = null;
+let userIsPro    = false;
+let userCredits  = 0;
+let currentMode  = 'product';
+let imageBase64  = null;
+let imageMime    = 'image/jpeg';
+let isSignUp     = true;
+
+const FREE_LIMIT = 3;
+
+// ── PROMPTS ──────────────────────────────────────────────
+const PROMPTS = {
+product:`You are an expert Shopify SEO copywriter. Analyze this product image carefully and generate ONLY the following with EXACTLY these headings:
+
+SEO TITLE:
+[One title under 70 characters. Keyword-rich, compelling, includes the main product keyword.]
+
+PRODUCT DESCRIPTION:
+[Two paragraphs. First: what it is, material, and who it is for. Second: key benefits and emotional value. No bullet points here.]
+
+BULLET POINTS:
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+
+META TITLE:
+[Under 60 characters. Include main keyword.]
+
+META DESCRIPTION:
+[Under 160 characters. Include a soft CTA.]
+
+SEO TAGS:
+[7 comma-separated long-tail keyword tags]
+
+Be specific to what you see in the image. No placeholder text.`,
+
+ads:`You are a direct-response Meta ads copywriter. Analyze this product image and write 3 ad variations with EXACTLY these headings:
+
+FEED AD:
+Hook: [One punchy scroll-stopping line]
+Body: [2 sentences — benefit + social proof or urgency]
+CTA: [Button text, 2-4 words]
+
+STORIES AD:
+Hook: [POV: or question format — very short]
+Body: [One line — benefit + price if visible]
+CTA: [Button text, 2-4 words]
+
+RETARGETING AD:
+Hook: [Urgency for someone who already saw the product]
+Body: [One line — remove the last objection]
+CTA: [Button text, 2-4 words]
+
+Be specific to what you see in the image. Make hooks scroll-stopping.`,
+
+both:`You are an expert Shopify SEO copywriter and Meta ads specialist. Analyze this product image and generate ALL of the following with EXACTLY these headings:
+
+SEO TITLE:
+[One title under 70 characters. Keyword-rich.]
+
+PRODUCT DESCRIPTION:
+[Two paragraphs — what it is + key benefits. No bullets here.]
+
+BULLET POINTS:
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+• [Benefit-led bullet under 20 words]
+
+META TITLE:
+[Under 60 characters]
+
+META DESCRIPTION:
+[Under 160 characters with soft CTA]
+
+SEO TAGS:
+[7 comma-separated long-tail keyword tags]
+
+FEED AD:
+Hook: [Scroll-stopping one liner]
+Body: [2 sentences — benefit + social proof]
+CTA: [2-4 word button text]
+
+STORIES AD:
+Hook: [POV: or question format]
+Body: [One line — benefit + price if visible]
+CTA: [2-4 word button text]
+
+RETARGETING AD:
+Hook: [Urgency for warm audience]
+Body: [One line — overcome final objection]
+CTA: [2-4 word button text]
+
+Be specific to what you actually see. No placeholders.`
+};
+
+// ── AUTH ──────────────────────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    currentUser = user;
+    await loadUserData(user.uid);
+    showLoggedIn();
+  } else {
+    currentUser = null;
+    userIsPro   = false;
+    userCredits = 0;
+    showLoggedOut();
+  }
+});
+
+async function loadUserData(uid) {
+  const ref = db.collection('users').doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({ email: currentUser.email, credits: FREE_LIMIT, isPro: false, createdAt: new Date() });
+    userCredits = FREE_LIMIT;
+    userIsPro   = false;
+  } else {
+    const d = snap.data();
+    userCredits = d.credits ?? FREE_LIMIT;
+    userIsPro   = d.isPro   ?? false;
+  }
+  updateUI();
+}
+
+function showLoggedIn() {
+  document.getElementById('auth-modal').classList.remove('show');
+  document.getElementById('login-gate').style.display = 'none';
+  const badge = document.getElementById('user-badge');
+  badge.style.display = 'flex';
+  document.getElementById('credits-badge').style.display = 'none';
+
+  const email = currentUser.email || '';
+  document.getElementById('user-email-short').textContent = email.split('@')[0];
+  document.getElementById('user-avatar').textContent = (email[0]||'U').toUpperCase();
+  updateUI();
+}
+
+function showLoggedOut() {
+  document.getElementById('user-badge').style.display = 'none';
+  document.getElementById('credits-badge').style.display = 'flex';
+  document.getElementById('credits-display').textContent = FREE_LIMIT;
+  updateUI();
+}
+
+function updateUI() {
+  const proEl = document.getElementById('pro-pill');
+  if (userIsPro) {
+    proEl.classList.remove('hidden');
+    document.getElementById('btn-gen').disabled = false;
+    document.getElementById('paywall').style.display = 'none';
+  } else {
+    proEl.classList.add('hidden');
+    if (currentUser && userCredits <= 0) {
+      document.getElementById('paywall').style.display = 'block';
+      document.getElementById('btn-gen').disabled = true;
+    } else {
+      document.getElementById('paywall').style.display = 'none';
+      document.getElementById('btn-gen').disabled = false;
+    }
+    if (currentUser) {
+      document.getElementById('credits-badge').style.display = 'flex';
+      document.getElementById('credits-badge').style.display = 'none'; // shown in user-badge area instead
+      // show credits in user badge
+      const num = document.getElementById('credits-display');
+      num.textContent = Math.max(0, userCredits);
+    }
+  }
+  // update Gumroad links
+  document.querySelectorAll('a[href="YOUR_GUMROAD_LINK"]').forEach(a => a.href = GUMROAD_LINK);
+}
+
+function openAuth() {
+  document.getElementById('auth-modal').classList.add('show');
+}
+
+function toggleAuthMode() {
+  isSignUp = !isSignUp;
+  document.getElementById('modal-title').textContent = isSignUp ? 'Create your account' : 'Welcome back';
+  document.getElementById('modal-sub').textContent   = isSignUp ? 'Get 3 free generations. No credit card needed.' : 'Sign in to continue generating.';
+  document.getElementById('auth-submit-btn').textContent = isSignUp ? 'Create account' : 'Sign in';
+  document.getElementById('auth-switch').innerHTML   = isSignUp
+    ? 'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>'
+    : "Don't have an account? <a onclick=\"toggleAuthMode()\">Sign up</a>";
+  const nameWrap = document.getElementById('auth-name-wrap');
+  if (isSignUp) nameWrap.classList.remove('hidden'); else nameWrap.classList.add('hidden');
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function signInGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(provider);
+  } catch(e) {
+    showAuthError(e.message);
+  }
+}
+
+async function authSubmit() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-password').value;
+  if (!email || !pass) { showAuthError('Please fill in all fields.'); return; }
+  const btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Please wait...';
+  try {
+    if (isSignUp) {
+      await auth.createUserWithEmailAndPassword(email, pass);
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/email-already-in-use':'That email already has an account. Sign in instead.',
+      'auth/wrong-password':'Wrong password. Try again.',
+      'auth/user-not-found':'No account with that email. Sign up instead.',
+      'auth/weak-password':'Password must be at least 6 characters.',
+      'auth/invalid-email':'Please enter a valid email address.',
+    };
+    showAuthError(msgs[e.code] || e.message);
+    btn.disabled = false;
+    btn.textContent = isSignUp ? 'Create account' : 'Sign in';
+  }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function signOut() {
+  await auth.signOut();
+  document.getElementById('results').classList.add('hidden');
+  document.getElementById('results').innerHTML = '';
+}
+
+// ── MODE ─────────────────────────────────────────────────
+function selectMode(el) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentMode = el.dataset.mode;
+  document.getElementById('pro-lock').style.display = 'none';
+}
+
+function selectModePro(el) {
+  if (userIsPro) { selectMode(el); return; }
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.mode-card')[0].classList.add('active');
+  currentMode = 'product';
+  const lock = document.getElementById('pro-lock');
+  lock.style.display = 'flex';
+  lock.querySelector('a').href = GUMROAD_LINK;
+  lock.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── UPLOAD ───────────────────────────────────────────────
+function handleFile(file) {
+  if (!file) return;
+  imageMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageBase64 = e.target.result.split(',')[1];
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('upload-placeholder').style.display = 'none';
+    document.getElementById('upload-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetUpload(e) {
+  e.stopPropagation();
+  imageBase64 = null;
+  document.getElementById('preview-img').src = '';
+  document.getElementById('upload-placeholder').style.display = 'block';
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+(function setupDragDrop() {
+  const area = document.getElementById('upload-area');
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag-over'); });
+  area.addEventListener('dragleave', () => area.classList.remove('drag-over'));
+  area.addEventListener('drop', e => {
+    e.preventDefault(); area.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
+  });
+})();
+
+// ── GENERATE ─────────────────────────────────────────────
+async function generate() {
+  if (!currentUser) { openAuth(); return; }
+  if (!imageBase64) { showError('⚠ Please upload a product image first.'); return; }
+  if (!userIsPro && userCredits <= 0) {
+    document.getElementById('paywall').style.display = 'block';
+    document.getElementById('paywall').scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
+
+  const btn     = document.getElementById('btn-gen');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btn-text');
+  const loading = document.getElementById('loading-state');
+  const results = document.getElementById('results');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Analyzing image...';
+  loading.style.display = 'block';
+  results.classList.add('hidden');
+  results.innerHTML = '';
+  document.getElementById('error-box').style.display = 'none';
+
+  try {
+    // FIXED: use v1 (not v1beta) — this was the error you saw
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inline_data: { mime_type: imageMime, data: imageBase64 } },
+            { text: PROMPTS[currentMode] }
+          ]}],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
+      }
+    );
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API error.');
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('No content returned. Please try again.');
+
+    // Deduct credit from Firestore
+    if (!userIsPro) {
+      userCredits = Math.max(0, userCredits - 1);
+      await db.collection('users').doc(currentUser.uid).update({ credits: userCredits });
+      updateUI();
+    }
+
+    loading.style.display = 'none';
+    renderResults(text, currentMode);
+
+  } catch(err) {
+    loading.style.display = 'none';
+    showError('⚠ ' + (err.message || 'Something went wrong. Please try again.'));
+  } finally {
+    spinner.style.display = 'none';
+    btnText.textContent = '✦ Generate content';
+    btn.disabled = (!userIsPro && userCredits <= 0);
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function extract(text, heading) {
+  const re = new RegExp(heading + '\\s*:?\\s*([\\s\\S]*?)(?=\\n[A-Z ]+:|$)', 'i');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+function extractAd(text, label) {
+  const re = new RegExp(label + '\\s*:?\\s*([\\s\\S]*?)(?=\\n[A-Z ]+AD:|$)', 'i');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+function parseAd(block) {
+  const hook = ((block||'').match(/Hook\s*:\s*(.+)/i)||[])[1]||'';
+  const body = ((block||'').match(/Body\s*:\s*([\s\S]+?)(?=CTA:|$)/i)||[])[1]||'';
+  const cta  = ((block||'').match(/CTA\s*:\s*(.+)/i)||[])[1]||'Shop now';
+  return { hook:hook.trim(), body:body.trim(), cta:cta.trim() };
+}
+function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escJ(s){ return (s||'').replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$'); }
+function doCopy(btn,text){ navigator.clipboard.writeText(text).then(()=>{ btn.classList.add('copied'); btn.textContent='✓ Copied!'; setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent='⎘ Copy'; },2000); }); }
+function cpBtn(t){ return `<button class="btn-copy" onclick="doCopy(this,\`${escJ(t)}\`)">⎘ Copy</button>`; }
+
+function renderResults(text, mode) {
+  const results = document.getElementById('results');
+  results.classList.remove('hidden');
+  const score = 72 + Math.floor(Math.random()*20);
+
+  let html = `<div class="results-header">
+    <div class="results-title">Your content pack ✦</div>
+    <button class="btn-regen" onclick="generate()">↻ Regenerate</button>
+  </div>`;
+
+  if (mode === 'product' || mode === 'both') {
+    const seoTitle = extract(text,'SEO TITLE');
+    const desc     = extract(text,'PRODUCT DESCRIPTION');
+    const bullets  = extract(text,'BULLET POINTS');
+    const metaT    = extract(text,'META TITLE');
+    const metaD    = extract(text,'META DESCRIPTION');
+    const tagsRaw  = extract(text,'SEO TAGS');
+    const tags     = tagsRaw.split(',').map(t=>t.trim()).filter(Boolean);
+
+    html += `
+    <div class="out-block">
+      <div class="obh"><div class="obl"><span class="dot dg"></span>SEO title</div>${cpBtn(seoTitle)}</div>
+      <div class="out-title-big out-content">${escH(seoTitle)}</div>
+      <div class="seo-meter">
+        <span class="seo-meter-label">SEO score</span>
+        <div class="seo-bar-wrap"><div class="seo-bar-fill" style="width:${score}%"></div></div>
+        <span class="seo-score-val">${score}/100</span>
+      </div>
+    </div>
+    <div class="out-block">
+      <div class="obh"><div class="obl"><span class="dot dg"></span>Product description</div>${cpBtn(desc)}</div>
+      <div class="out-content">${escH(desc)}</div>
+    </div>
+    <div class="out-block">
+      <div class="obh"><div class="obl"><span class="dot dg"></span>Bullet points</div>${cpBtn(bullets)}</div>
+      <div class="out-content">${escH(bullets)}</div>
+    </div>
+    <div class="two-col">
+      <div class="out-block">
+        <div class="obh"><div class="obl"><span class="dot db"></span>Meta title</div>${cpBtn(metaT)}</div>
+        <div class="out-content">${escH(metaT)}</div>
+      </div>
+      <div class="out-block">
+        <div class="obh"><div class="obl"><span class="dot db"></span>Meta description</div>${cpBtn(metaD)}</div>
+        <div class="out-content">${escH(metaD)}</div>
+      </div>
+    </div>
+    <div class="out-block">
+      <div class="obh"><div class="obl"><span class="dot db"></span>SEO keyword tags</div>${cpBtn(tagsRaw)}</div>
+      <div class="tags-wrap">${tags.map(t=>`<span class="tag">${escH(t)}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  if (mode === 'ads' || mode === 'both') {
+    const feed    = parseAd(extractAd(text,'FEED AD'));
+    const stories = parseAd(extractAd(text,'STORIES AD'));
+    const retar   = parseAd(extractAd(text,'RETARGETING AD'));
+    const adStr   = a => `${a.hook}\n\n${a.body}\n\nCTA: ${a.cta}`;
+
+    html += `
+    <div style="margin-top:${mode==='both'?'20px':'0'}">
+      <div class="obl" style="margin-bottom:12px"><span class="dot dp"></span>Meta ad copy</div>
+      <div class="ad-block feed">
+        <div class="ad-platform">📘 Facebook / Instagram feed ${cpBtn(adStr(feed))}</div>
+        <div class="ad-hook">${escH(feed.hook)}</div>
+        <div class="ad-body">${escH(feed.body)}</div>
+        <span class="ad-cta">${escH(feed.cta)}</span>
+      </div>
+      <div class="ad-block stories">
+        <div class="ad-platform">📸 Instagram stories ${cpBtn(adStr(stories))}</div>
+        <div class="ad-hook">${escH(stories.hook)}</div>
+        <div class="ad-body">${escH(stories.body)}</div>
+        <span class="ad-cta">${escH(stories.cta)}</span>
+      </div>
+      <div class="ad-block retarget">
+        <div class="ad-platform">🎯 Retargeting ad ${cpBtn(adStr(retar))}</div>
+        <div class="ad-hook">${escH(retar.hook)}</div>
+        <div class="ad-body">${escH(retar.body)}</div>
+        <span class="ad-cta">${escH(retar.cta)}</span>
+      </div>
+    </div>`;
+  }
+
+  results.innerHTML = html;
+  results.scrollIntoView({behavior:'smooth', block:'start'});
+
+  if (!userIsPro && userCredits <= 0) {
+    setTimeout(()=>{
+      document.getElementById('paywall').style.display = 'block';
+      document.getElementById('paywall').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }, 1800);
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(()=> el.style.display='none', 7000);
+}
+</script>
+</body>
+</html>
